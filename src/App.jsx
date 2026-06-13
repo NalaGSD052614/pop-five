@@ -1,247 +1,383 @@
-/* The puzzle bank. Add new puzzles here, the daily rotation handles the rest.
-   Each puzzle: category, answer (display), accept (normalized match list), 5 clues vague to obvious. */
+import React, { useState, useMemo, useEffect } from "react";
+import { PUZZLES, LAUNCH_DATE } from "./puzzles.js";
+import { sounds, getMuted, setMuted } from "./sounds.js";
 
-export const LAUNCH_DATE = new Date(2026, 5, 12); // June 12, 2026 = Puzzle #1
+const POINTS = [5, 4, 3, 2, 1];
+const CATEGORY_META = {
+  Movie: { icon: "🎬", color: "#FF5C8A" },
+  Music: { icon: "🎵", color: "#4DD6C1" },
+  Celebrity: { icon: "⭐", color: "#FFC940" },
+  "TV Show": { icon: "📺", color: "#8C7BFF" },
+};
 
-export const PUZZLES = [
-  { category: "Movie", answer: "Titanic", accept: ["titanic"], clues: [
-    "This 1997 film held the all time box office record for over a decade.",
-    "Its director later broke his own record twice with blue aliens and their sequel.",
-    "It won 11 Academy Awards, tying the all time record.",
-    "Fans still argue whether two people could fit on that floating door.",
-    "Leonardo DiCaprio is the king of the world on a doomed ship." ]},
-  { category: "Music", answer: "Taylor Swift", accept: ["taylor swift", "tswift", "taylor alison swift"], clues: [
-    "This artist started in country music as a teenager before conquering pop.",
-    "Fans decode hidden easter eggs in everything this artist releases.",
-    "Re recorded earlier albums and stamped them as their own versions.",
-    "The Eras Tour became the highest grossing concert tour in history.",
-    "Dating a Chiefs tight end made this artist an NFL broadcast fixture." ]},
-  { category: "TV Show", answer: "Stranger Things", accept: ["stranger things"], clues: [
-    "Set in a fictional small Indiana town in the 1980s.",
-    "Single handedly sent a 1985 Kate Bush song back up the charts.",
-    "A girl with a shaved head and a nosebleed has powerful abilities.",
-    "Kids battle creatures from a dark dimension called the Upside Down.",
-    "Eleven loves Eggo waffles." ]},
-  { category: "Celebrity", answer: "Dwayne Johnson", accept: ["dwayne johnson", "the rock", "rock", "dwayne the rock johnson"], clues: [
-    "Played college football at the University of Miami.",
-    "Was a champion in a very different kind of ring before Hollywood.",
-    "Famous for one raised eyebrow and asking if you can smell what's cooking.",
-    "Now one of the highest paid actors alive, starring in Jumanji and Moana.",
-    "His wrestling name is a geological feature." ]},
-  { category: "Movie", answer: "The Matrix", accept: ["matrix", "the matrix"], clues: [
-    "This 1999 film made trench coats and tiny sunglasses a uniform.",
-    "Its slow motion camera trick was named bullet time.",
-    "The hero's name is an anagram of One.",
-    "You must choose between a red pill and a blue pill.",
-    "Keanu Reeves dodges bullets as Neo." ]},
-  { category: "Music", answer: "Beyoncé", accept: ["beyonce", "beyonce knowles", "queen bey", "queen b"], clues: [
-    "Got their start in a Houston girl group in the late 90s.",
-    "Holds the record for the most Grammy wins of any artist.",
-    "Dropped a surprise self titled visual album with zero promotion.",
-    "Went country with an album called Cowboy Carter.",
-    "The BeyHive worships her and her alter ego Sasha Fierce." ]},
-  { category: "TV Show", answer: "The Office", accept: ["the office", "office", "the office us"], clues: [
-    "A documentary crew films a mid sized paper company for nine seasons.",
-    "Set in Scranton, Pennsylvania.",
-    "Features a teapot gift, a fire drill gone wrong, and Pretzel Day.",
-    "Jim and Pam's romance kept viewers hooked for years.",
-    "Michael Scott is the World's Best Boss, per his own mug." ]},
-  { category: "Celebrity", answer: "Oprah Winfrey", accept: ["oprah winfrey", "oprah"], clues: [
-    "Rose from poverty in Mississippi to become a billionaire media mogul.",
-    "Ran the highest rated daytime talk show in TV history for 25 years.",
-    "Her book club picks instantly become bestsellers.",
-    "Famous for giving an entire studio audience free cars.",
-    "You get a car! You get a car! Everybody gets a car!" ]},
-  { category: "Movie", answer: "Jurassic Park", accept: ["jurassic park"], clues: [
-    "This 1993 blockbuster was based on a Michael Crichton novel.",
-    "Its effects were so groundbreaking they changed filmmaking forever.",
-    "Life, uh, finds a way in this movie.",
-    "A glass of water ripples as something enormous approaches.",
-    "Spielberg's theme park of cloned dinosaurs goes very wrong." ]},
-  { category: "Music", answer: "Michael Jackson", accept: ["michael jackson", "mj", "michael joseph jackson"], clues: [
-    "Began performing with four brothers as a child in Gary, Indiana.",
-    "Owns the best selling album of all time, released in 1982.",
-    "Famous for a single sparkly glove and a gravity defying lean.",
-    "Debuted the moonwalk on live television in 1983.",
-    "Known worldwide as the King of Pop." ]},
-  { category: "TV Show", answer: "Friends", accept: ["friends"], clues: [
-    "This sitcom's Manhattan apartment would cost a fortune in real rent.",
-    "Its theme song promises to be there for you.",
-    "A paleontologist, a chef, and a masseuse are among the main six.",
-    "Catchphrases include How you doin and WE WERE ON A BREAK.",
-    "Ross, Rachel, Monica, Chandler, Joey, and Phoebe hang at Central Perk." ]},
-  { category: "Celebrity", answer: "Keanu Reeves", accept: ["keanu reeves", "keanu"], clues: [
-    "Famous for being one of the nicest people in Hollywood.",
-    "A photo of this person eating a sandwich alone became the Sad meme.",
-    "Reportedly gave away big chunks of movie profits to film crews.",
-    "Starred in Speed, Point Break, and a saga about a stolen puppy's revenge.",
-    "He is breathtaking, and he knows kung fu." ]},
-  { category: "Movie", answer: "Star Wars", accept: ["star wars", "star wars a new hope", "a new hope", "star wars episode 4", "star wars episode iv"], clues: [
-    "This 1977 film opens with text crawling into deep space.",
-    "Its composer's brass heavy theme is instantly recognizable.",
-    "A farm boy, a smuggler, and a princess take on an empire.",
-    "May the Force be with you.",
-    "Luke Skywalker blows up the Death Star." ]},
-  { category: "Music", answer: "Elvis Presley", accept: ["elvis presley", "elvis"], clues: [
-    "Bought a Memphis mansion called Graceland.",
-    "His swiveling hips scandalized 1950s television.",
-    "Served in the US Army at the height of his fame.",
-    "Famous for jumpsuits, sideburns, and Las Vegas residencies.",
-    "Known simply as the King of Rock and Roll." ]},
-  { category: "TV Show", answer: "Breaking Bad", accept: ["breaking bad"], clues: [
-    "Turned an RV in the New Mexico desert into an icon.",
-    "Its lawyer spinoff was almost as acclaimed as the original.",
-    "The main character adopts the alias Heisenberg.",
-    "A mild chemistry teacher becomes a kingpin after a cancer diagnosis.",
-    "Walter White is the one who knocks." ]},
-  { category: "Celebrity", answer: "Tom Cruise", accept: ["tom cruise"], clues: [
-    "Famous for sprinting at full speed in nearly every film.",
-    "Insists on doing his own increasingly insane stunts.",
-    "Slid across a floor in socks and sunglasses in a 1983 breakout role.",
-    "Jumped on Oprah's couch in one of TV's most replayed moments.",
-    "Maverick himself, star of Top Gun and Mission Impossible." ]},
-  { category: "Movie", answer: "Back to the Future", accept: ["back to the future", "bttf"], clues: [
-    "This 1985 film made a commercial flop of a car legendary.",
-    "Its hero must make sure his own parents fall in love.",
-    "Where we're going, we don't need roads.",
-    "The time machine needs 1.21 gigawatts and 88 miles per hour.",
-    "Marty McFly and Doc Brown ride a DeLorean through time." ]},
-  { category: "Music", answer: "Queen", accept: ["queen"], clues: [
-    "This band's logo was designed by its lead singer using zodiac signs.",
-    "Their 1985 Live Aid set is called the greatest live performance ever.",
-    "A biopic about their frontman won four Oscars.",
-    "Stadiums still stomp and clap to one of their anthems.",
-    "Freddie Mercury asks if this is the real life or just fantasy." ]},
-  { category: "TV Show", answer: "Game of Thrones", accept: ["game of thrones", "got"], clues: [
-    "Based on a book series the author still hasn't finished.",
-    "Its weddings are events you do not want an invitation to.",
-    "Winter is coming.",
-    "Dragons, direwolves, and a very pointy chair everyone fights over.",
-    "Jon Snow knows nothing, according to Ygritte." ]},
-  { category: "Celebrity", answer: "Serena Williams", accept: ["serena williams", "serena"], clues: [
-    "Grew up practicing on public courts in Compton, California.",
-    "Won a Grand Slam title while pregnant.",
-    "Owns 23 major singles titles, the most of the Open Era.",
-    "Her older sister was also her greatest rival.",
-    "Arguably the greatest tennis player of all time." ]},
-  { category: "Movie", answer: "Frozen", accept: ["frozen"], clues: [
-    "This 2013 animated film is loosely based on a Hans Christian Andersen tale.",
-    "Parents could not escape its soundtrack for years.",
-    "A talking snowman dreams about summer.",
-    "Two royal sisters, one with dangerous ice powers.",
-    "Elsa belts Let It Go." ]},
-  { category: "Music", answer: "Drake", accept: ["drake", "aubrey graham", "aubrey drake graham"], clues: [
-    "Started out as a wheelchair bound character on a Canadian teen drama.",
-    "Reps Toronto so hard the city is nicknamed The Six.",
-    "Holds records for the most charted songs in Billboard history.",
-    "His dance moves in the Hotline Bling video became instant memes.",
-    "Started from the bottom, now he's here." ]},
-  { category: "TV Show", answer: "The Simpsons", accept: ["the simpsons", "simpsons"], clues: [
-    "The longest running scripted primetime show in American history.",
-    "Famous for eerily predicting real world events decades early.",
-    "Set in a town of Springfield in a state never revealed.",
-    "A nuclear safety inspector who loves donuts and Duff beer.",
-    "Homer says D'oh, Bart says Eat my shorts." ]},
-  { category: "Celebrity", answer: "Will Smith", accept: ["will smith"], clues: [
-    "Started as a Grammy winning rapper before becoming a movie star.",
-    "Played a boxing legend and a tennis dad in Oscar nominated roles.",
-    "A 90s sitcom had him move from Philadelphia to a rich relative's mansion.",
-    "An onstage slap at the 2022 Oscars dominated headlines.",
-    "The Fresh Prince of Bel Air himself." ]},
-  { category: "Movie", answer: "The Lion King", accept: ["the lion king", "lion king"], clues: [
-    "This 1994 animated film borrows its plot from Hamlet.",
-    "Elton John wrote its love ballad.",
-    "A meerkat and a warthog teach a problem free philosophy.",
-    "It opens with every animal gathering at Pride Rock.",
-    "Simba must avenge Mufasa and take his place as king." ]},
-  { category: "Music", answer: "Adele", accept: ["adele", "adele adkins"], clues: [
-    "Names albums after the age she was when writing them.",
-    "Her voice once required throat surgery to save.",
-    "Swept six Grammys in one night in 2012.",
-    "Famous for flipping the bird at the Brits when her speech got cut.",
-    "Hello from the other side." ]},
-  { category: "TV Show", answer: "Seinfeld", accept: ["seinfeld"], clues: [
-    "Famously described as a show about nothing.",
-    "Its finale put the main characters on trial for doing nothing.",
-    "Gave us close talkers, double dipping, and regifting.",
-    "A comedian, his ex, his neighbor, and George navigate Manhattan.",
-    "No soup for you!" ]},
-  { category: "Celebrity", answer: "Kim Kardashian", accept: ["kim kardashian", "kim k", "kim kardashian west"], clues: [
-    "Started as a closet organizer for celebrities like Paris Hilton.",
-    "A family reality show ran for 20 seasons and spawned an empire.",
-    "Broke the internet with a champagne glass magazine cover.",
-    "Studying to become a lawyer like her famous father.",
-    "Married Kanye, built SKIMS, mothers North, Saint, Chicago, and Psalm." ]},
-  { category: "Movie", answer: "Forrest Gump", accept: ["forrest gump"], clues: [
-    "This 1994 film inserts its hero into decades of real historical footage.",
-    "Its hero ran across America multiple times for no particular reason.",
-    "A box of chocolates explains everything about life.",
-    "Tom Hanks won his second straight Oscar for this role.",
-    "Run, Forrest, run!" ]},
-  { category: "Music", answer: "Rihanna", accept: ["rihanna", "robyn fenty", "riri"], clues: [
-    "Born in Barbados and discovered as a teenager.",
-    "Built a billion dollar beauty empire called Fenty.",
-    "Fans begged for a new album for nearly a decade.",
-    "Performed the Super Bowl halftime show while pregnant.",
-    "You can stand under her umbrella, ella, ella." ]},
-  { category: "TV Show", answer: "Squid Game", accept: ["squid game"], clues: [
-    "Became Netflix's most watched series ever within weeks.",
-    "Contestants wear numbered green tracksuits.",
-    "Childhood playground games turn deadly for cash prizes.",
-    "A giant doll sings during Red Light, Green Light.",
-    "456 desperate players, one massive piggy bank of money." ]},
-  { category: "Celebrity", answer: "LeBron James", accept: ["lebron james", "lebron", "king james"], clues: [
-    "Was on the cover of Sports Illustrated while still in high school.",
-    "Announced a famous Decision on live television in 2010.",
-    "Has won championships with three different franchises.",
-    "Passed Kareem to become the NBA's all time leading scorer.",
-    "The King, the Chosen One, from Akron, Ohio." ]},
-  { category: "Movie", answer: "Home Alone", accept: ["home alone"], clues: [
-    "This 1990 film is a Christmas rewatch ritual in millions of homes.",
-    "Its young star became the highest paid child actor of his time.",
-    "Two burglars suffer increasingly painful booby traps.",
-    "A family flies to Paris and forgets something important.",
-    "Kevin McCallister slaps aftershave on his cheeks and screams." ]},
-  { category: "Music", answer: "Bruno Mars", accept: ["bruno mars", "peter hernandez"], clues: [
-    "Performed as a tiny Elvis impersonator as a kid in Hawaii.",
-    "Has headlined the Super Bowl halftime show multiple times.",
-    "Formed a retro funk duo called Silk Sonic.",
-    "Don't believe him? Just watch.",
-    "Uptown Funk gonna give it to you." ]},
-  { category: "TV Show", answer: "SpongeBob SquarePants", accept: ["spongebob squarepants", "spongebob"], clues: [
-    "Created by a marine biology teacher turned animator.",
-    "Its theme song starts with a pirate asking are you ready, kids.",
-    "A grumpy neighbor plays clarinet badly next door.",
-    "The hero flips Krabby Patties and lives in a pineapple.",
-    "Who lives in a pineapple under the sea?" ]},
-  { category: "Celebrity", answer: "Michael Jordan", accept: ["michael jordan", "air jordan"], clues: [
-    "Was famously cut from his high school varsity team as a sophomore.",
-    "Retired at his peak to play minor league baseball.",
-    "His sneaker line outsells every active athlete's combined.",
-    "Won six championships in six tries with one franchise.",
-    "His Airness, number 23 for the Chicago Bulls." ]},
-  { category: "Movie", answer: "The Avengers", accept: ["the avengers", "avengers"], clues: [
-    "This 2012 film paid off four years of post credits scenes.",
-    "Its heroes memorably share shawarma after the final battle.",
-    "A god, a soldier, a genius, and a giant green problem team up.",
-    "Loki tries to conquer Earth through a portal over New York.",
-    "Earth's Mightiest Heroes assemble for the first time." ]},
-  { category: "Music", answer: "Eminem", accept: ["eminem", "marshall mathers", "slim shady"], clues: [
-    "Rose from Detroit rap battles to global superstardom.",
-    "An 8 Mile movie dramatized his early life.",
-    "Famous for an alter ego in a white tank top who stands up.",
-    "Mom's spaghetti is forever linked to his most famous song.",
-    "The real Slim Shady, lose yourself in the music." ]},
-  { category: "TV Show", answer: "The Fresh Prince of Bel-Air", accept: ["the fresh prince of bel air", "fresh prince of bel air", "fresh prince"], clues: [
-    "This 90s sitcom's theme song is recited word for word at parties.",
-    "A butler named Geoffrey delivers the driest burns on TV.",
-    "Carlton's dance to Tom Jones became a cultural phenomenon.",
-    "In west Philadelphia, born and raised.",
-    "Will moves in with his auntie and uncle in a California mansion." ]},
-  { category: "Celebrity", answer: "Lady Gaga", accept: ["lady gaga", "stefani germanotta"], clues: [
-    "Wore a dress made of raw meat to an awards show.",
-    "Arrived at the 2011 Grammys inside a giant egg.",
-    "Won an Oscar for a song from A Star Is Born.",
-    "Her fans are known as Little Monsters.",
-    "Born this way, with a poker face." ]},
-];
+const normalize = (s) =>
+  s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9 ]/g, "").replace(/\b(the|a|an)\b/g, "")
+    .replace(/\s+/g, " ").trim();
+
+function daysSinceLaunch() {
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  return Math.max(0, Math.round((today - LAUNCH_DATE) / 86400000));
+}
+
+const store = {
+  get(key, fallback) {
+    try { const v = localStorage.getItem(key); return v === null ? fallback : JSON.parse(v); }
+    catch { return fallback; }
+  },
+  set(key, val) { try { localStorage.setItem(key, JSON.stringify(val)); } catch {} },
+};
+
+export default function App() {
+  const dayNum = useMemo(() => daysSinceLaunch(), []);
+  const puzzleNum = dayNum + 1;
+  const dailyIndex = (dayNum * 17) % PUZZLES.length;
+
+  const [name, setName] = useState(() => store.get("pf_name", ""));
+  const [nameInput, setNameInput] = useState("");
+  const [muted, setMutedState] = useState(getMuted());
+  const [mode, setMode] = useState("daily");
+  const [freeIndex, setFreeIndex] = useState(null);
+  const [view, setView] = useState("game"); // game | board
+
+  const savedResult = store.get(`pf_result_${puzzleNum}`, null);
+  const [cluesShown, setCluesShown] = useState(savedResult ? savedResult.clues : 1);
+  const [status, setStatus] = useState(savedResult ? (savedResult.pts > 0 ? "won" : "lost") : "playing");
+  const [guess, setGuess] = useState("");
+  const [guessLog, setGuessLog] = useState([]);
+  const [wrongFlash, setWrongFlash] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [board, setBoard] = useState(null);
+  const [boardErr, setBoardErr] = useState(false);
+
+  const streak = store.get("pf_streak", 0);
+  const maxStreak = store.get("pf_max_streak", 0);
+  const totalPts = store.get("pf_total_pts", 0);
+  const played = store.get("pf_played", 0);
+
+  const puzzle = mode === "daily" ? PUZZLES[dailyIndex] : PUZZLES[freeIndex];
+  const meta = CATEGORY_META[puzzle.category];
+
+  const toggleMute = () => { const m = !muted; setMutedState(m); setMuted(m); };
+
+  const fetchBoard = async () => {
+    try {
+      const res = await fetch(`/api/leaderboard?puzzle=${puzzleNum}`);
+      if (!res.ok) throw new Error();
+      setBoard(await res.json());
+      setBoardErr(false);
+    } catch { setBoardErr(true); }
+  };
+
+  useEffect(() => { fetchBoard(); }, []);
+
+  const submitScore = async (pts, clues) => {
+    if (!name) return;
+    try {
+      await fetch("/api/leaderboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ puzzle: puzzleNum, name, pts, clues }),
+      });
+      fetchBoard();
+    } catch {}
+  };
+
+  const finishDaily = (won, clues) => {
+    const pts = won ? POINTS[clues - 1] : 0;
+    store.set(`pf_result_${puzzleNum}`, { pts, clues });
+    store.set("pf_total_pts", totalPts + pts);
+    store.set("pf_played", played + 1);
+    const lastWin = store.get("pf_last_win_puzzle", 0);
+    if (won) {
+      const newStreak = lastWin === puzzleNum - 1 ? streak + 1 : 1;
+      store.set("pf_streak", newStreak);
+      store.set("pf_last_win_puzzle", puzzleNum);
+      if (newStreak > maxStreak) store.set("pf_max_streak", newStreak);
+    } else {
+      store.set("pf_streak", 0);
+    }
+    submitScore(pts, clues);
+  };
+
+  const submitGuess = () => {
+    if (!guess.trim() || status !== "playing") return;
+    const g = normalize(guess);
+    const correct = puzzle.accept.some((a) => normalize(a) === g);
+    setGuessLog((l) => [...l, guess.trim()]);
+    if (correct) {
+      sounds.win();
+      setStatus("won");
+      if (mode === "daily") finishDaily(true, cluesShown);
+    } else {
+      sounds.wrong();
+      setWrongFlash(true);
+      setTimeout(() => setWrongFlash(false), 500);
+      if (cluesShown >= 5) {
+        sounds.lose();
+        setStatus("lost");
+        if (mode === "daily") finishDaily(false, 5);
+      } else setCluesShown((c) => c + 1);
+    }
+    setGuess("");
+  };
+
+  const revealNext = () => {
+    if (status !== "playing") return;
+    if (cluesShown >= 5) {
+      sounds.lose();
+      setStatus("lost");
+      if (mode === "daily") finishDaily(false, 5);
+    } else {
+      sounds.reveal();
+      setCluesShown((c) => c + 1);
+    }
+  };
+
+  const startFreePlay = () => {
+    sounds.click();
+    let idx = Math.floor(Math.random() * PUZZLES.length);
+    if (idx === dailyIndex) idx = (idx + 1) % PUZZLES.length;
+    setMode("free"); setFreeIndex(idx); setCluesShown(1);
+    setStatus("playing"); setGuess(""); setGuessLog([]); setCopied(false);
+    setView("game");
+  };
+
+  const shareText = () => {
+    const r = mode === "daily" && savedResult ? savedResult : { pts: status === "won" ? POINTS[cluesShown - 1] : 0, clues: cluesShown };
+    const solvedAt = r.pts > 0 ? r.clues : null;
+    const row = [1, 2, 3, 4, 5]
+      .map((n) => (solvedAt && n === solvedAt ? "🟩" : n <= r.clues ? "🟨" : "⬜")).join("");
+    return `POP FIVE #${puzzleNum} ${meta.icon}\n${row} ${r.pts}/5 pts\n${window.location.origin}`;
+  };
+
+  const copyShare = async () => {
+    sounds.click();
+    try { await navigator.clipboard.writeText(shareText()); }
+    catch {
+      const ta = document.createElement("textarea");
+      ta.value = shareText(); document.body.appendChild(ta);
+      ta.select(); document.execCommand("copy"); document.body.removeChild(ta);
+    }
+    setCopied(true); setTimeout(() => setCopied(false), 2000);
+  };
+
+  const saveName = () => {
+    const n = nameInput.trim().slice(0, 20);
+    if (!n) return;
+    sounds.click();
+    store.set("pf_name", n);
+    setName(n);
+  };
+
+  /* ---------- styles ---------- */
+  const S = {
+    page: { minHeight: "100vh", background: "#14122B", fontFamily: "'Archivo', sans-serif", color: "#FFF6E3", padding: "0 16px 48px" },
+    wrap: { maxWidth: 560, margin: "0 auto" },
+    btn: (bg, fg, extra = {}) => ({ padding: "13px 24px", fontSize: 15, fontWeight: 800, borderRadius: 10, border: "none", background: bg, color: fg, cursor: "pointer", fontFamily: "inherit", ...extra }),
+    ghostBtn: { padding: "11px 18px", fontSize: 14, fontWeight: 600, borderRadius: 10, border: "1px solid #3B3566", background: "transparent", color: "#B8B3DC", cursor: "pointer", fontFamily: "inherit" },
+  };
+
+  if (!name) {
+    return (
+      <div style={S.page}>
+        <GlobalCss />
+        <div style={{ ...S.wrap, paddingTop: 80, textAlign: "center" }}>
+          <h1 style={{ fontFamily: "'Bungee', cursive", fontSize: 48, margin: 0, color: "#FFC940", textShadow: "0 0 24px rgba(255,201,64,.35), 3px 3px 0 #FF5C8A" }}>POP FIVE</h1>
+          <p style={{ color: "#B8B3DC", fontWeight: 600, marginBottom: 32 }}>Five clues. One icon. A new mystery every day.</p>
+          <div style={{ background: "#221D45", border: "1px solid #3B3566", borderRadius: 14, padding: 24 }}>
+            <div style={{ fontWeight: 800, marginBottom: 12 }}>Pick a player name for the leaderboard</div>
+            <input
+              value={nameInput}
+              onChange={(e) => setNameInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && saveName()}
+              placeholder="e.g. John from New Lenox"
+              maxLength={20}
+              aria-label="Player name"
+              style={{ width: "100%", boxSizing: "border-box", padding: "14px 16px", fontSize: 16, borderRadius: 10, border: "2px solid #3B3566", background: "#1B1738", color: "#FFF6E3", fontFamily: "inherit", marginBottom: 14 }}
+            />
+            <button onClick={saveName} style={S.btn("#FFC940", "#14122B", { width: "100%" })}>Let's play</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={S.page}>
+      <GlobalCss />
+      <div style={S.wrap}>
+        <header style={{ textAlign: "center", padding: "28px 0 4px", position: "relative" }}>
+          <button onClick={toggleMute} aria-label={muted ? "Unmute sounds" : "Mute sounds"} style={{ position: "absolute", right: 0, top: 30, background: "transparent", border: "1px solid #3B3566", borderRadius: 8, color: "#B8B3DC", padding: "6px 10px", cursor: "pointer", fontSize: 16 }}>
+            {muted ? "🔇" : "🔊"}
+          </button>
+          <h1 style={{ fontFamily: "'Bungee', cursive", fontSize: "clamp(34px, 9vw, 50px)", margin: 0, letterSpacing: 2, color: "#FFC940", textShadow: "0 0 24px rgba(255,201,64,.35), 3px 3px 0 #FF5C8A" }}>POP FIVE</h1>
+          <p style={{ margin: "6px 0 0", fontSize: 14, color: "#B8B3DC", fontWeight: 600 }}>
+            {mode === "daily" ? `Daily Puzzle #${puzzleNum}` : "Free Play"} · Hey, {name}
+          </p>
+        </header>
+
+        {/* Stats strip */}
+        <div style={{ display: "flex", justifyContent: "center", gap: 18, padding: "14px 0 18px", fontSize: 13, fontWeight: 700, color: "#B8B3DC", flexWrap: "wrap" }}>
+          <span>🔥 Streak {streak}</span>
+          <span>🏆 Best {maxStreak}</span>
+          <span style={{ color: "#FFC940" }}>★ {totalPts} pts</span>
+          <button onClick={() => { sounds.click(); setView(view === "game" ? "board" : "game"); if (view === "game") fetchBoard(); }} style={{ background: "transparent", border: "none", color: "#4DD6C1", fontWeight: 800, cursor: "pointer", fontFamily: "inherit", fontSize: 13, padding: 0 }}>
+            {view === "game" ? "Leaderboard →" : "← Back to game"}
+          </button>
+        </div>
+
+        {view === "board" ? (
+          <Leaderboard board={board} err={boardErr} puzzleNum={puzzleNum} myName={name} onRefresh={fetchBoard} />
+        ) : (
+          <>
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 16 }}>
+              <span style={{ background: meta.color, color: "#14122B", fontWeight: 800, fontSize: 13, padding: "6px 14px", borderRadius: 999, letterSpacing: 1, textTransform: "uppercase" }}>
+                {meta.icon} {puzzle.category}
+              </span>
+              <div style={{ display: "flex", gap: 8 }} aria-label={`${POINTS[Math.min(cluesShown, 5) - 1]} points available`}>
+                {POINTS.map((p, i) => {
+                  const lit = status === "playing" ? i >= cluesShown - 1 : false;
+                  const wonHere = status === "won" && i === cluesShown - 1;
+                  return (
+                    <div key={p} style={{
+                      width: 22, height: 22, borderRadius: "50%",
+                      background: wonHere ? "#4DD6C1" : lit ? "#FFC940" : "#2E2952",
+                      border: "2px solid " + (wonHere ? "#4DD6C1" : lit ? "#FFD96B" : "#3B3566"),
+                      animation: lit && i === cluesShown - 1 ? "bulbPulse 1.6s infinite" : "none",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      fontSize: 10, fontWeight: 800, color: lit || wonHere ? "#14122B" : "#55507A",
+                    }}>{p}</div>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 10, marginBottom: 20 }}>
+              {puzzle.clues.slice(0, cluesShown).map((clue, i) => (
+                <div key={i} style={{ background: "#221D45", border: "1px solid #3B3566", borderLeft: `5px solid ${meta.color}`, borderRadius: 10, padding: "14px 16px", animation: "slideIn .35s ease" }}>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: meta.color, letterSpacing: 1.5, marginBottom: 4 }}>CLUE {i + 1}</div>
+                  <div style={{ fontSize: 16, lineHeight: 1.45 }}>{clue}</div>
+                </div>
+              ))}
+            </div>
+
+            {status === "playing" ? (
+              <div style={{ animation: wrongFlash ? "shake .45s" : "none" }}>
+                <div style={{ display: "flex", gap: 8 }}>
+                  <input
+                    value={guess}
+                    onChange={(e) => setGuess(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && submitGuess()}
+                    placeholder="Who or what is it?"
+                    aria-label="Your guess"
+                    style={{ flex: 1, minWidth: 0, padding: "14px 16px", fontSize: 16, borderRadius: 10, border: wrongFlash ? "2px solid #FF5C8A" : "2px solid #3B3566", background: "#1B1738", color: "#FFF6E3", fontFamily: "inherit" }}
+                  />
+                  <button onClick={submitGuess} style={S.btn("#FFC940", "#14122B")}>Guess</button>
+                </div>
+                <button onClick={revealNext} style={{ ...S.ghostBtn, marginTop: 10, width: "100%" }}>
+                  {cluesShown < 5 ? `Reveal next clue (drops to ${POINTS[cluesShown]} pts)` : "Give up and reveal answer"}
+                </button>
+                {guessLog.length > 0 && (
+                  <div style={{ marginTop: 12, fontSize: 13, color: "#807AA8" }}>Wrong so far: {guessLog.join(", ")}</div>
+                )}
+              </div>
+            ) : (
+              <div style={{
+                background: status === "won" ? "rgba(77,214,193,.08)" : "rgba(255,92,138,.08)",
+                border: `2px solid ${status === "won" ? "#4DD6C1" : "#FF5C8A"}`,
+                borderRadius: 14, padding: "22px 20px", textAlign: "center", animation: "slideIn .35s ease",
+              }}>
+                <div style={{ fontFamily: "'Bungee', cursive", fontSize: 22, color: status === "won" ? "#4DD6C1" : "#FF5C8A", marginBottom: 6 }}>
+                  {status === "won" ? "NAILED IT!" : "STUMPED!"}
+                </div>
+                <div style={{ fontSize: 17, marginBottom: 4 }}>
+                  The answer was <strong style={{ color: "#FFC940" }}>{puzzle.answer}</strong>
+                </div>
+                <div style={{ fontSize: 14, color: "#B8B3DC", marginBottom: 14 }}>
+                  {status === "won" ? `Solved on clue ${cluesShown} for ${POINTS[cluesShown - 1]} points` : "Zero points this round"}
+                </div>
+                {mode === "daily" && (
+                  <div style={{ fontSize: 16, letterSpacing: 1.5, marginBottom: 16, fontFamily: "monospace", whiteSpace: "pre-line" }}>{shareText()}</div>
+                )}
+                <div style={{ display: "flex", gap: 10, justifyContent: "center", flexWrap: "wrap" }}>
+                  {mode === "daily" && (
+                    <button onClick={copyShare} style={S.btn(copied ? "#4DD6C1" : "#FFC940", "#14122B")}>
+                      {copied ? "Copied! ✓" : "Copy result to share"}
+                    </button>
+                  )}
+                  <button onClick={startFreePlay} style={mode === "daily" ? S.ghostBtn : S.btn("#FFC940", "#14122B")}>
+                    {mode === "daily" ? "Keep playing (free play)" : "Next puzzle →"}
+                  </button>
+                </div>
+                {mode === "daily" && (
+                  <div style={{ marginTop: 14, fontSize: 12, color: "#807AA8" }}>New daily puzzle drops at midnight</div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+function Leaderboard({ board, err, puzzleNum, myName, onRefresh }) {
+  if (err) {
+    return (
+      <div style={{ background: "#221D45", border: "1px solid #3B3566", borderRadius: 14, padding: 24, textAlign: "center", color: "#B8B3DC" }}>
+        <div style={{ fontWeight: 800, marginBottom: 8 }}>Leaderboard not connected yet</div>
+        <div style={{ fontSize: 14, lineHeight: 1.5 }}>
+          This appears once the Upstash Redis database is linked in Vercel. See the README for the two minute setup.
+        </div>
+      </div>
+    );
+  }
+  if (!board) return <div style={{ textAlign: "center", color: "#807AA8", padding: 30 }}>Loading scores…</div>;
+
+  const Section = ({ title, rows, ptsLabel }) => (
+    <div style={{ background: "#221D45", border: "1px solid #3B3566", borderRadius: 14, padding: "18px 16px", marginBottom: 16 }}>
+      <div style={{ fontSize: 12, fontWeight: 800, letterSpacing: 1.5, color: "#807AA8", marginBottom: 12 }}>{title}</div>
+      {rows.length === 0 ? (
+        <div style={{ color: "#807AA8", fontSize: 14 }}>No scores yet. Be the first!</div>
+      ) : rows.map((r, i) => (
+        <div key={r.name} style={{
+          display: "flex", justifyContent: "space-between", alignItems: "center",
+          padding: "9px 10px", borderRadius: 8, marginBottom: 4,
+          background: r.name === myName ? "rgba(255,201,64,.1)" : "transparent",
+          border: r.name === myName ? "1px solid rgba(255,201,64,.4)" : "1px solid transparent",
+        }}>
+          <span style={{ fontWeight: 700, fontSize: 15 }}>
+            <span style={{ color: "#807AA8", marginRight: 10, fontSize: 13 }}>{i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : `${i + 1}.`}</span>
+            {r.name}
+          </span>
+          <span style={{ color: "#FFC940", fontWeight: 800, fontSize: 14 }}>{r.pts} {ptsLabel}{r.clues ? ` · clue ${r.clues}` : ""}</span>
+        </div>
+      ))}
+    </div>
+  );
+
+  return (
+    <div>
+      <Section title={`TODAY · PUZZLE #${puzzleNum}`} rows={board.today} ptsLabel="pts" />
+      <Section title="ALL TIME" rows={board.allTime} ptsLabel="total" />
+      <button onClick={onRefresh} style={{ width: "100%", padding: 11, fontSize: 14, fontWeight: 600, borderRadius: 10, border: "1px solid #3B3566", background: "transparent", color: "#B8B3DC", cursor: "pointer", fontFamily: "inherit" }}>
+        Refresh scores
+      </button>
+    </div>
+  );
+}
+
+function GlobalCss() {
+  return (
+    <style>{`
+      @keyframes bulbPulse { 0%,100% { box-shadow: 0 0 8px 2px rgba(255,201,64,.7);} 50% { box-shadow: 0 0 14px 4px rgba(255,201,64,.95);} }
+      @keyframes slideIn { from { opacity: 0; transform: translateY(10px);} to { opacity: 1; transform: translateY(0);} }
+      @keyframes shake { 0%,100%{transform:translateX(0)} 20%{transform:translateX(-8px)} 40%{transform:translateX(8px)} 60%{transform:translateX(-5px)} 80%{transform:translateX(5px)} }
+      @media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+      input:focus, button:focus-visible { outline: 3px solid #FFC940; outline-offset: 2px; }
+      body { background: #14122B; }
+    `}</style>
+  );
+}
