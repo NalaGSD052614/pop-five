@@ -192,7 +192,7 @@ export default function App() {
               value={nameInput}
               onChange={(e) => setNameInput(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && saveName()}
-              placeholder="e.g. John from New Lenox"
+              placeholder="Write your name"
               maxLength={20}
               aria-label="Player name"
               style={{ width: "100%", boxSizing: "border-box", padding: "14px 16px", fontSize: 16, borderRadius: 10, border: "2px solid #3B3566", background: "#1B1738", color: "#FFF6E3", fontFamily: "inherit", marginBottom: 14 }}
